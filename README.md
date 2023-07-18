@@ -47,6 +47,10 @@ This branch is a work in progress. The latest firmware version will work with Li
 ```
 ACTION=="add", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="a30e", RUN+="/sbin/modprobe gs_usb" RUN+="/bin/sh -c 'echo 0483 a30e > /sys/bus/usb/drivers/gs_usb/new_id'"
 ```
+enable the SocketCAN device with:
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+sudo ip link set can0 txqueuelen 1000
 
 ## Changelog
 

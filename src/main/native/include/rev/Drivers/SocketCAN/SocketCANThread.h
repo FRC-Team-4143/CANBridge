@@ -49,6 +49,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <linux/can.h>
 #include <linux/can/raw.h>
@@ -72,16 +73,8 @@ public:
     SocketCANDeviceThread() =delete;
     SocketCANDeviceThread(std::string port, long long threadIntervalMs = 1) : DriverDeviceThread(0xe45b5597, threadIntervalMs)
     { 
+	std::cout << "SocketCANDeviceThread()" << std::endl;
 	std::cout << port << std::endl;
-    }
-    ~SocketCANDeviceThread()
-    {
-    }
-
-    void Start() override {
-        if (m_thread.get() != nullptr && m_thread->joinable()) {
-            m_thread->join();
-        }
 
 	s = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 	if(s < 0) {
@@ -96,20 +89,38 @@ public:
 		return;
 	}
 
+	int flags = fcntl(s, F_GETFL);
+  	if(fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
+		perror("fnctl");
+		return;
+	}
+
         memset(&addr, 0, sizeof(addr));
         addr.can_family = AF_CAN;
 	addr.can_ifindex = ifr.ifr_ifindex;
 
+    }
+    ~SocketCANDeviceThread()
+    {
+        close(s);
+	std::cout << "~SocketCANDeviceThread()" << std::endl;
+    }
+
+    void Start() override {
 	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		perror("bind");
 		return;
 	}
 
 
+        if (m_thread.get() != nullptr && m_thread->joinable()) {
+            m_thread->join();
+        }
         m_thread = std::make_unique<std::thread>(&SocketCANDeviceThread::CandleRun, this);
 
         // Set to high priority to prevent buffer overflow on the device on high client CPU load
         utils::SetThreadPriority(m_thread.get(), utils::ThreadPriority::High);
+	std::cout << "SocketCAN thread started" << std::endl;
     }
 
     void OpenStream(uint32_t* handle, CANBridge_CANFilter filter, uint32_t maxSize, CANStatus *status) override {
@@ -133,7 +144,7 @@ private:
     int nbytes;
 
    void ReadMessages(bool &reading) {
-       can_frame incomingFrame;
+        can_frame incomingFrame;
 
 	nbytes = read(s, &incomingFrame, sizeof(struct can_frame));
 
@@ -141,6 +152,11 @@ private:
 
         // Received a new frame, store it
         if (reading) {
+		std::cout << "ReadMessages got one " << 
+			std::hex << (incomingFrame.can_id & CAN_SFF_MASK) << " " <<
+		        std::hex << incomingFrame.can_dlc << " " <<
+			std::hex << incomingFrame.data << " " <<
+			std::endl;
 
                 auto msg = std::make_shared<CANMessage>(incomingFrame.can_id,
                                                     incomingFrame.data,
@@ -178,9 +194,12 @@ private:
             frame.can_id = el.m_msg.GetMessageId() | 0x80000000;
             memcpy(frame.data, el.m_msg.GetData(), frame.can_dlc);
 
+	    //std::cout << "WriteMessages:" << std::hex << (el.m_msg.GetMessageId() & CAN_SFF_MASK) << std::endl;
             // TODO: Feed back an error
-            if (write(s, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
-                // std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << std::dec << "  " << "reason why?" << std::endl;
+            auto status = write(s, &frame, sizeof(struct can_frame));
+            if (status != sizeof(struct can_frame)) {
+		perror("write");
+                //std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << " " << sizeof(struct can_frame) << " status " << status << std::endl;
                 m_threadStatus = CANStatus::kDeviceWriteError;
                 m_statusErrCount++;
                 return false;
@@ -193,6 +212,7 @@ private:
    }
 
     void CandleRun() {
+	std::cout << "CandleRun()" << std::endl;
         while (m_threadComplete == false) {
             m_threadStatus = CANStatus::kOk; // Start each loop with the status being good. Really only a write issue.
             auto sleepTime = std::chrono::steady_clock::now() + std::chrono::milliseconds(m_threadIntervalMs);
