@@ -70,13 +70,13 @@ int SocketCANDevice::GetId() const
 
 int SocketCANDevice::GetNumberOfErrors() 
 {
-    return 0; //m_thread.GetNumberOfErrors();
+    return m_thread.GetNumberOfErrors();
 }
 
 CANStatus SocketCANDevice::SendCANMessage(const CANMessage& msg, int periodMs)
 {
-    //m_thread.EnqueueMessage(msg, periodMs);
-    return CANStatus::kError; //m_thread.GetLastThreadError();
+    m_thread.EnqueueMessage(msg, periodMs);
+    return m_thread.GetLastThreadError();
 }
 
 CANStatus SocketCANDevice::ReceiveCANMessage(std::shared_ptr<CANMessage>& msg, uint32_t messageID, uint32_t messageMask)
@@ -86,7 +86,7 @@ CANStatus SocketCANDevice::ReceiveCANMessage(std::shared_ptr<CANMessage>& msg, u
     // parse through the keys, find the messges the match, and return it
     // The first in the message id, then the messages
     std::map<uint32_t, std::shared_ptr<CANMessage>> messages;
-    //m_thread.ReceiveMessage(messages);
+    m_thread.ReceiveMessage(messages);
     std::shared_ptr<CANMessage> mostRecent;
     for (auto& m : messages) {
         if (CANBridge_ProcessMask({m.second->GetMessageId(), 0}, m.first) && CANBridge_ProcessMask({messageID, messageMask}, m.first)) {
@@ -97,7 +97,7 @@ CANStatus SocketCANDevice::ReceiveCANMessage(std::shared_ptr<CANMessage>& msg, u
 
     if (status == CANStatus::kOk) {
         msg = mostRecent;
-        status = CANStatus::kError; //m_thread.GetLastThreadError();
+        status = m_thread.GetLastThreadError();
     } else {
         status = CANStatus::kError;
     }
@@ -110,31 +110,31 @@ CANStatus SocketCANDevice::OpenStreamSession(uint32_t* sessionHandle, CANBridge_
 {
     // Register the stream with the correct buffer size
     CANStatus stat = CANStatus::kOk;
-    //m_thread.OpenStream(sessionHandle, filter, maxSize, &stat);
-    return CANStatus::kError; //m_thread.GetLastThreadError();
+    m_thread.OpenStream(sessionHandle, filter, maxSize, &stat);
+    return m_thread.GetLastThreadError();
 }
 CANStatus SocketCANDevice::CloseStreamSession(uint32_t sessionHandle)
 {
-    //m_thread.CloseStream(sessionHandle);
-    return CANStatus::kError;// m_thread.GetLastThreadError();
+    m_thread.CloseStream(sessionHandle);
+    return m_thread.GetLastThreadError();
 }
 CANStatus SocketCANDevice::ReadStreamSession(uint32_t sessionHandle, struct HAL_CANStreamMessage* msgs, uint32_t messagesToRead, uint32_t* messagesRead)
 {
-    //m_thread.ReadStream(sessionHandle, msgs, messagesToRead, messagesRead);
-    return CANStatus::kError; //m_thread.GetLastThreadError();
+    m_thread.ReadStream(sessionHandle, msgs, messagesToRead, messagesRead);
+    return m_thread.GetLastThreadError();
 }
 
 CANStatus SocketCANDevice::GetCANDetailStatus(float* percentBusUtilization, uint32_t* busOff, uint32_t* txFull, uint32_t* receiveErr, uint32_t* transmitErr)
 {
     rev::usb::CANStatusDetails details;
-    //m_thread.GetCANStatus(&details);
+    m_thread.GetCANStatus(&details);
     *busOff = details.busOffCount;
     *txFull = details.txFullCount;
     *receiveErr = details.receiveErrCount;
     *transmitErr = details.transmitErrCount;
     *percentBusUtilization = 0.0; // todo how to get this properly
     
-    return CANStatus::kError; //m_thread.GetLastThreadError();
+    return m_thread.GetLastThreadError();
 }
 
 CANStatus SocketCANDevice::GetCANDetailStatus(float* percentBusUtilization, uint32_t* busOff, uint32_t* txFull, uint32_t* receiveErr, uint32_t* transmitErr, uint32_t* lastErrorTime)

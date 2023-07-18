@@ -63,7 +63,11 @@ TEST(CANMessageTest, SendAndReceive) {
         // device->ReceiveCANMessage(msg, messageID, messageMask);
     }
 
+#ifdef __linux__
+    EXPECT_EQ(numDevices, 2);
+#else
     EXPECT_EQ(numDevices, 1);
+#endif
 
     CANBridge_UnregisterDeviceFromHAL(CANBridge_GetDeviceDescriptor(handle, 0));
 

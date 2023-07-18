@@ -60,8 +60,6 @@
 
 #include "utils/ThreadUtils.h"
 
-#include "candlelib/candle.h"
-
 #include <hal/simulation/CanData.h>
 #include <hal/CAN.h>
 
@@ -129,7 +127,6 @@ public:
 
 
 private:
-    //candle_handle m_device;
     int s;
     struct sockaddr_can addr;
     struct ifreq ifr;
@@ -138,8 +135,6 @@ private:
    void ReadMessages(bool &reading) {
        can_frame incomingFrame;
 
-        //reading = candle_frame_read(m_device, &incomingFrame, 0);
-	
 	nbytes = read(s, &incomingFrame, sizeof(struct can_frame));
 
 	reading = (nbytes == sizeof(struct can_frame));
@@ -147,9 +142,9 @@ private:
         // Received a new frame, store it
         if (reading) {
 
-                auto msg = std::make_shared<CANMessage>(incomingFrame.can_id,   //candle_frame_id(&incomingFrame),
-                                                    incomingFrame.data,     //candle_frame_data(&incomingFrame),
-                                                    incomingFrame.can_dlc, //candle_frame_dlc(&incomingFrame),
+                auto msg = std::make_shared<CANMessage>(incomingFrame.can_id,
+                                                    incomingFrame.data,
+                                                    incomingFrame.can_dlc,
                                                     std::chrono::steady_clock::now().time_since_epoch().count() / 1000);
 
                 // Read functions
@@ -182,11 +177,10 @@ private:
             // set extended id flag
             frame.can_id = el.m_msg.GetMessageId() | 0x80000000;
             memcpy(frame.data, el.m_msg.GetData(), frame.can_dlc);
-            //frame.timestamp_us = now.time_since_epoch().count() / 1000;
 
             // TODO: Feed back an error
             if (write(s, &frame, sizeof(struct can_frame)) != sizeof(struct can_frame)) {
-                // std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << std::dec << "  " << candle_error_text(candle_dev_last_error(m_device)) << std::endl;
+                // std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << std::dec << "  " << "reason why?" << std::endl;
                 m_threadStatus = CANStatus::kDeviceWriteError;
                 m_statusErrCount++;
                 return false;
