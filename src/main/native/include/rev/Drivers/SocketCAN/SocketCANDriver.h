@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 REV Robotics
+ * Copyright (c) 2019 - 2020 REV Robotics
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -26,45 +26,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <hal/HAL.h>
+#pragma once
 
-#include "MockDS.h"
+#include <map>
+#include <string>
 
-#include "gtest/gtest.h"
+#include "rev/CANDriver.h"
 
-#if 0
-#include <rev/Drivers/SocketCAN/SocketCANDriver.h>
-#endif 
+namespace rev {
+namespace usb {
 
-int main(int argc, char** argv) {
+class SocketCANDriver : public CANDriver {
+public:
+    SocketCANDriver() {}
+    virtual ~SocketCANDriver() override {}
 
-#if 0
-  rev::usb::SocketCANDriver driver;
-auto output = driver.GetDevices();
+    virtual std::string GetName() const {return "SocketCAN";}
 
-  if (output.size() == 0) {
-    std::cout << "No devices found" << std::endl;
-    return 1;
-  }
+    virtual std::vector<CANDeviceDetail> GetDevices() override;
+    virtual std::unique_ptr<CANDevice> CreateDeviceFromDescriptor(const char* descriptor) override;
+};
 
-  for (auto itr = output.begin(); itr != output.end(); itr++) {
-    std::cout << itr->descriptor << std::endl;
-  }
-
-  auto device = driver.CreateDeviceFromDescriptor(output[0].descriptor.c_str());
-
-  std::cout << "Selected device: " << device->GetName() << std::endl;
-
-  return 0;
-#endif
-
-  HAL_Initialize(500, 0);
-  frc::MockDS ds;
-  ds.start();
-  HAL_ObserveUserProgramStarting();
-  ds.enable();
-
-  ::testing::InitGoogleTest(&argc, argv);
-  int ret = RUN_ALL_TESTS();
-  return ret;
-}
+} // namespace usb
+} // namespace rev
