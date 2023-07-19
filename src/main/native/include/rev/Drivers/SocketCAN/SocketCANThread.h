@@ -152,11 +152,11 @@ private:
 
         // Received a new frame, store it
         if (reading) {
-		std::cout << "ReadMessages got one " << 
-			std::hex << (incomingFrame.can_id & CAN_SFF_MASK) << " " <<
-		        std::hex << incomingFrame.can_dlc << " " <<
-			std::hex << incomingFrame.data << " " <<
-			std::endl;
+		//std::cout << "ReadMessages got one " << 
+		//	std::hex << (incomingFrame.can_id & CAN_SFF_MASK) << " " <<
+		//       std::hex << incomingFrame.can_dlc << " " <<
+		//	std::hex << incomingFrame.data << " " <<
+		//	std::endl;
 
                 auto msg = std::make_shared<CANMessage>(incomingFrame.can_id,
                                                     incomingFrame.data,
@@ -191,10 +191,10 @@ private:
             can_frame frame;
             frame.can_dlc = el.m_msg.GetSize();
             // set extended id flag
-            frame.can_id = el.m_msg.GetMessageId() | 0x80000000;
+            frame.can_id = el.m_msg.GetMessageId();
             memcpy(frame.data, el.m_msg.GetData(), frame.can_dlc);
 
-	    //std::cout << "WriteMessages:" << std::hex << (el.m_msg.GetMessageId() & CAN_SFF_MASK) << std::endl;
+	    //std::cout << "WriteMessages:" << el.m_msg << " " << std::hex << el.m_msg.GetSize() << std::endl;
             // TODO: Feed back an error
             auto status = write(s, &frame, sizeof(struct can_frame));
             if (status != sizeof(struct can_frame)) {
