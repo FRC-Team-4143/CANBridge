@@ -82,22 +82,26 @@ public:
 		return;
 	}
 
-	strcpy(ifr.ifr_name, "can0");
+	strcpy(ifr.ifr_name, "can1");
 
 	if (ioctl(s, SIOCGIFINDEX, &ifr) < 0) {
-		perror("SIOCGIFINDEX");
-		return;
+		strcpy(ifr.ifr_name, "can0");
+		if (ioctl(s, SIOCGIFINDEX, &ifr) < 0) {
+			perror("SIOCGIFINDEX");
+			return;
+		}
 	}
 
-	int flags = fcntl(s, F_GETFL);
-  	if(fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
-		perror("fnctl");
-		return;
-	}
+	//int flags = fcntl(s, F_GETFL);
+  	//if(fcntl(s, F_SETFL, flags | O_NONBLOCK) < 0) {
+	//	perror("fnctl");
+	//	return;
+	//}
 
         memset(&addr, 0, sizeof(addr));
         addr.can_family = AF_CAN;
 	addr.can_ifindex = ifr.ifr_ifindex;
+
 
     }
     ~SocketCANDeviceThread()
@@ -142,19 +146,33 @@ private:
     struct sockaddr_can addr;
     struct ifreq ifr;
     int nbytes;
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
 
    void ReadMessages(bool &reading) {
         can_frame incomingFrame;
 
-	nbytes = read(s, &incomingFrame, sizeof(struct can_frame));
+	FD_ZERO(&rfds);
+    	FD_SET(s, &rfds);
+
+    	tv.tv_sec = 0;
+    	tv.tv_usec = 1;
+
+	nbytes = 0;
+	retval = select(s+1, &rfds, NULL, NULL, &tv); 
+	if(retval == -1)
+		perror("select()");
+	else if(retval)
+		nbytes = read(s, &incomingFrame, sizeof(struct can_frame));
 
 	reading = (nbytes == sizeof(struct can_frame));
 
         // Received a new frame, store it
         if (reading) {
 		//std::cout << "ReadMessages got one " << 
-		//	std::hex << (incomingFrame.can_id & CAN_SFF_MASK) << " " <<
-		//       std::hex << incomingFrame.can_dlc << " " <<
+		//	std::hex << incomingFrame.can_id << " " <<
+		//      std::hex << incomingFrame.can_dlc << " " <<
 		//	std::hex << incomingFrame.data << " " <<
 		//	std::endl;
 
@@ -187,19 +205,18 @@ private:
    }
 
    bool WriteMessages(detail::CANThreadSendQueueElement el, std::chrono::steady_clock::time_point now) {
-        if (el.m_intervalMs == 0 || (now - el.m_prevTimestamp >= std::chrono::milliseconds(el.m_intervalMs)) ) {
+        //if (el.m_intervalMs == 0 || (now - el.m_prevTimestamp >= std::chrono::milliseconds(el.m_intervalMs)) ) {
             can_frame frame;
             frame.can_dlc = el.m_msg.GetSize();
             // set extended id flag
-            frame.can_id = el.m_msg.GetMessageId();
+            frame.can_id = el.m_msg.GetMessageId() | CAN_EFF_FLAG;
             memcpy(frame.data, el.m_msg.GetData(), frame.can_dlc);
 
-	    //std::cout << "WriteMessages:" << el.m_msg << " " << std::hex << el.m_msg.GetSize() << std::endl;
+	    //std::cout << "WriteMessages: " << el.m_msg << " " << std::hex << el.m_intervalMs << std::endl;
             // TODO: Feed back an error
             auto status = write(s, &frame, sizeof(struct can_frame));
             if (status != sizeof(struct can_frame)) {
-		perror("write");
-                //std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << " " << sizeof(struct can_frame) << " status " << status << std::endl;
+                std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << " " << sizeof(struct can_frame) << " status " << status << std::endl;
                 m_threadStatus = CANStatus::kDeviceWriteError;
                 m_statusErrCount++;
                 return false;
@@ -207,8 +224,8 @@ private:
                 m_threadStatus = CANStatus::kOk;
                 return true;
             }
-        }
-        return false;
+        //}
+        //return false;
    }
 
     void CandleRun() {
@@ -220,6 +237,8 @@ private:
             // 1) Handle all received CAN traffic
             bool reading = false;
             ReadMessages(reading);
+	    //if(reading)
+	    //    std::cout << "CandleRun() loop reading" << std::endl;
 
             // 2) Schedule CANMessage queue
             {
@@ -237,11 +256,13 @@ private:
                     if (WriteMessages(el, now)) {
                         m_sendQueue.pop();
 
-                        // Return to end of queue if repeated
-                        if (el.m_intervalMs > 0 ) {
-                            el.m_prevTimestamp = now;
-                            m_sendQueue.push(el);
-                        }
+			// // something else is doing this
+                        // Return to end of queue if repeated 
+                        //if (el.m_intervalMs > 0 ) {
+                        //    now = std::chrono::steady_clock::now();
+                        //    el.m_prevTimestamp = now;
+                        //    m_sendQueue.push(el);
+                        //}
                     }
                 }
             }
