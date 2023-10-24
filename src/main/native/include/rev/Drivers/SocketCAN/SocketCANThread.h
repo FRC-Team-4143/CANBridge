@@ -216,7 +216,7 @@ private:
             // TODO: Feed back an error
             auto status = write(s, &frame, sizeof(struct can_frame));
             if (status != sizeof(struct can_frame)) {
-                std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << " " << sizeof(struct can_frame) << " status " << status << std::endl;
+                //std::cout << "Failed to send message: " << std::hex << (int)el.m_msg.GetMessageId() << " " << sizeof(struct can_frame) << " status " << status << std::endl;
                 m_threadStatus = CANStatus::kDeviceWriteError;
                 m_statusErrCount++;
                 return false;

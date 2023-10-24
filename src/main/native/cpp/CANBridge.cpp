@@ -59,6 +59,35 @@
 #error Not designed for FRC RoboRIO Projects! Requires HALSIM. For roboRIO projects use CAN.
 #endif
 
+#include <atomic>
+
+static std::atomic<bool> gCANConnected = false;
+
+extern "C" {
+#if defined(WIN32) || defined(_WIN32)
+__declspec(dllexport)
+#endif
+int HALSIM_InitExtension(void) {
+  static bool once = false;
+
+  if (once) {
+    std::fputs("Error: cannot invoke HALSIM_InitExtension twice.\n", stderr);
+    return -1;
+  }
+  once = true;
+
+  //HAL_Initialize(500, 0);
+  int32_t status;
+  std::cout << "registering canbridge" << std::endl;
+  auto handle = CANBridge_Scan();
+  CANBridge_RegisterDeviceToHAL(CANBridge_GetDeviceDescriptor(handle, 0), 0, 0, &status);
+  std::cout << "CANBridge_Register status: " << status << std::endl;
+  return status;
+}
+} //extern "C"
+
+
+
 struct CANBridge_Scan {
     std::vector<rev::usb::CANDeviceDetail> devices;
 };

@@ -129,6 +129,9 @@ void CANBridge_RegisterDeviceToHAL(const char* descriptor, uint32_t messageId, u
  */
 void CANBridge_UnregisterDeviceFromHAL(const char* descriptor);
 
+/* register automatically */
+int HALSIM_InitExtension(void);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
